@@ -1,6 +1,7 @@
 use libloading::{Library, Symbol};
 struct Plugin {
     lib: Library,
+    ac_state: PluginActivateState,
 }
 use std::error::Error;
 use std::{collections::HashMap, path::PathBuf};
@@ -15,6 +16,11 @@ pub struct PluginManager {
 pub enum CallOrder {
     Asc,
     Desc,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub enum PluginActivateState {
+    Activate,
+    Disable,
 }
 impl PluginManager {
     pub fn new(base_path: &str) -> Self {
@@ -46,8 +52,13 @@ impl PluginManager {
             }
         };
         self.order.push(lib_name.clone());
-        self.plugin_list
-            .insert(lib_name.clone(), Plugin { lib: lib });
+        self.plugin_list.insert(
+            lib_name.clone(),
+            Plugin {
+                lib: lib,
+                ac_state: PluginActivateState::Activate, // ロード直後はすべて有効とする
+            },
+        );
         Ok(())
     }
     pub fn get_all_plugin_func_with_order<T>(
@@ -58,15 +69,15 @@ impl PluginManager {
         let mut result = Vec::new();
         if co == CallOrder::Asc {
             for name in &self.order {
-                if let Ok(func)=self.get_plugin_function::<T>(&name, function_name){
+                if let Ok(func) = self.get_plugin_function::<T>(&name, function_name) {
                     result.push(func)
                 }
             }
         } else {
             let len = self.order.len();
             for i in 0..len {
-                let name = &self.order[len-1-i];
-                if let Ok(func)=self.get_plugin_function::<T>(&name, function_name){
+                let name = &self.order[len - 1 - i];
+                if let Ok(func) = self.get_plugin_function::<T>(&name, function_name) {
                     result.push(func)
                 }
             }
@@ -78,6 +89,8 @@ impl PluginManager {
         plugin_name: &str,
         function_name: &str,
     ) -> Result<Symbol<T>, PluginError> {
+        let ac_state = self.get_plugin_activate_state(plugin_name);
+        if ac_state==Some(PluginActivateState::Disable){return Err(PluginError::new(PluginErrorId::PluginDisable,"読み込まれていますが、ユーザにより無効化されています"));}
         let func: Symbol<T> = match self.plugin_list.get(plugin_name) {
             None => {
                 return Err(PluginError::new(
@@ -99,12 +112,53 @@ impl PluginManager {
         };
         Ok(func)
     }
+    pub fn get_plugin_activate_state_with_order(
+        &self,
+        index: usize,
+    ) -> Option<PluginActivateState> {
+        if self.order.len() <= index {
+            return None;
+        }
+        self.get_plugin_activate_state(&self.order[index].clone())
+    }
+
+    pub fn get_plugin_activate_state(&self, plugin_name: &str) -> Option<PluginActivateState> {
+        if let Some(plugin) = self.plugin_list.get(plugin_name) {
+            Some(plugin.ac_state.clone())
+        } else {
+            None
+        }
+    }
+    pub fn set_plugin_activate_state_with_order(
+        &mut self,
+        index: usize,
+        state: PluginActivateState,
+    ) -> Option<PluginActivateState> {
+        if self.order.len() <= index {
+            return None;
+        }
+        let name = &self.order[index].clone();
+        self.set_plugin_activate_state(&name, state)
+    }
+    pub fn set_plugin_activate_state(
+        &mut self,
+        plugin_name: &str,
+        state: PluginActivateState,
+    ) -> Option<PluginActivateState> {
+        if let Some(plugin) = self.plugin_list.get_mut(plugin_name) {
+            plugin.ac_state = state.clone();
+            Some(state)
+        } else {
+            None
+        }
+    }
 }
 #[derive(Debug, PartialEq)]
 pub enum PluginErrorId {
     FileNotFound,
     NotReady,
     SymbolNotFound,
+    PluginDisable
 }
 #[derive(Debug)]
 pub struct PluginError {
