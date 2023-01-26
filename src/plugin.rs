@@ -101,14 +101,14 @@ impl PluginManager {
             } else {
                 return Err(PluginError::new(
                     PluginErrorId::NotReady,
-                    format!("プラグイン \"{plugin_name}\" はロードされていません"),
+                    format!("\"{plugin_name}\" はロードされていません"),
                 ));
             };
         let func: Symbol<T> = match self.plugin_list.get(plugin_name) {
             None => {
                 return Err(PluginError::new(
                     PluginErrorId::NotReady,
-                    format!("プラグイン {plugin_name} はロードされていません"),
+                    format!("\"{plugin_name}\" はロードされていません"),
                 ))
             }
             Some(plugin) => unsafe {
@@ -116,7 +116,7 @@ impl PluginManager {
                     Err(e) => {
                         return Err(PluginError::new(
                             PluginErrorId::SymbolNotFound,
-                            format!("シンボル名 \"{function_name}\" が見つかりません"),
+                            format!("\"{function_name}\" が見つかりません"),
                         ))
                     }
                     Ok(f) => f,
