@@ -89,8 +89,8 @@ impl PluginManager {
         plugin_name: &str,
         function_name: &str,
     ) -> Result<Symbol<T>, PluginError> {
-        let ac_state =
-            if let Some((plugin_name, ac_state)) = self.get_plugin_activate_state(plugin_name) {
+        let _ =
+            if let Some((_, ac_state)) = self.get_plugin_activate_state(plugin_name) {
                 if ac_state == PluginActivateState::Disable {
                     return Err(PluginError::new(
                         PluginErrorId::PluginDisable,

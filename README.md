@@ -1,2 +1,2 @@
 # これなに？
-[multiline_paster](https://github.com/segfo/multiline_paster)のプラグインを作るときのライブラリ
+[multiline_paster](https://github.com/segfo/multiline_paster)のプラグインやモディファイアを作るときのライブラリ
