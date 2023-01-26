@@ -56,7 +56,7 @@ impl PluginManager {
             lib_name.clone(),
             Plugin {
                 lib: lib,
-                ac_state: PluginActivateState::Activate, // ロード直後はすべて有効とする
+                ac_state: PluginActivateState::Disable, // ロード直後はすべて無効とする
             },
         );
         Ok(())
