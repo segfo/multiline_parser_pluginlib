@@ -89,8 +89,21 @@ impl PluginManager {
         plugin_name: &str,
         function_name: &str,
     ) -> Result<Symbol<T>, PluginError> {
-        let ac_state = self.get_plugin_activate_state(plugin_name);
-        if ac_state==Some(PluginActivateState::Disable){return Err(PluginError::new(PluginErrorId::PluginDisable,"読み込まれていますが、ユーザにより無効化されています"));}
+        let ac_state =
+            if let Some((plugin_name, ac_state)) = self.get_plugin_activate_state(plugin_name) {
+                if ac_state == PluginActivateState::Disable {
+                    return Err(PluginError::new(
+                        PluginErrorId::PluginDisable,
+                        "\"{plugin_name}\" は読み込まれていますが、ユーザにより無効化されています",
+                    ));
+                }
+                ac_state
+            } else {
+                return Err(PluginError::new(
+                    PluginErrorId::NotReady,
+                    format!("プラグイン \"{plugin_name}\" はロードされていません"),
+                ));
+            };
         let func: Symbol<T> = match self.plugin_list.get(plugin_name) {
             None => {
                 return Err(PluginError::new(
@@ -115,16 +128,19 @@ impl PluginManager {
     pub fn get_plugin_activate_state_with_order(
         &self,
         index: usize,
-    ) -> Option<PluginActivateState> {
+    ) -> Option<(String, PluginActivateState)> {
         if self.order.len() <= index {
             return None;
         }
         self.get_plugin_activate_state(&self.order[index].clone())
     }
 
-    pub fn get_plugin_activate_state(&self, plugin_name: &str) -> Option<PluginActivateState> {
+    pub fn get_plugin_activate_state(
+        &self,
+        plugin_name: &str,
+    ) -> Option<(String, PluginActivateState)> {
         if let Some(plugin) = self.plugin_list.get(plugin_name) {
-            Some(plugin.ac_state.clone())
+            Some((plugin_name.to_owned(), plugin.ac_state.clone()))
         } else {
             None
         }
@@ -152,13 +168,19 @@ impl PluginManager {
             None
         }
     }
+    pub fn loaded_plugin_counts(&self) -> usize {
+        self.plugin_list.len()
+    }
+    pub fn get_plugin_ordered_list(&self)->&Vec<String>{
+        &self.order
+    }
 }
 #[derive(Debug, PartialEq)]
 pub enum PluginErrorId {
     FileNotFound,
     NotReady,
     SymbolNotFound,
-    PluginDisable
+    PluginDisable,
 }
 #[derive(Debug)]
 pub struct PluginError {
