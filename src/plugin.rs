@@ -169,7 +169,7 @@ impl PluginManager {
         }
     }
     pub fn loaded_plugin_counts(&self) -> usize {
-        self.plugin_list.len()
+        self.order.len()
     }
     pub fn get_plugin_ordered_list(&self)->&Vec<String>{
         &self.order
