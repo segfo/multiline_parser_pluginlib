@@ -113,7 +113,7 @@ impl PluginManager {
             }
             Some(plugin) => unsafe {
                 match plugin.lib.get(function_name.as_bytes()) {
-                    Err(e) => {
+                    Err(_e) => {
                         return Err(PluginError::new(
                             PluginErrorId::SymbolNotFound,
                             format!("\"{function_name}\" が見つかりません"),
@@ -175,14 +175,14 @@ impl PluginManager {
         &self.order
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq,Clone,Copy)]
 pub enum PluginErrorId {
     FileNotFound,
     NotReady,
     SymbolNotFound,
     PluginDisable,
 }
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct PluginError {
     id: PluginErrorId,
     msg: String,
@@ -193,6 +193,9 @@ impl PluginError {
             id: id,
             msg: msg.into(),
         }
+    }
+    pub fn plugin_error_id(&self)->PluginErrorId{
+        self.id
     }
 }
 impl std::error::Error for PluginError {
