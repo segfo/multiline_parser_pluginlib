@@ -1,5 +1,6 @@
 use libloading::{Library, Symbol};
 struct Plugin {
+    load_order: usize,
     lib: Library,
     ac_state: PluginActivateState,
 }
@@ -37,7 +38,7 @@ impl PluginManager {
         let mut base = self.base_path.clone();
         let lib_name = lib_name.into();
         base.push(&lib_name);
-        if let Some(_)=self.plugin_list.get(&lib_name){
+        if let Some(_) = self.plugin_list.get(&lib_name) {
             return Err(Box::new(PluginError::new(
                 PluginErrorId::AlreadyLoaded,
                 format!(
@@ -65,6 +66,7 @@ impl PluginManager {
         self.plugin_list.insert(
             lib_name.clone(),
             Plugin {
+                load_order: self.order.len() - 1,
                 lib: lib,
                 ac_state: PluginActivateState::Disable, // ロード直後はすべて無効とする
             },
@@ -99,21 +101,20 @@ impl PluginManager {
         plugin_name: &str,
         function_name: &str,
     ) -> Result<Symbol<T>, PluginError> {
-        let _ =
-            if let Some((_, ac_state)) = self.get_plugin_activate_state(plugin_name) {
-                if ac_state == PluginActivateState::Disable {
-                    return Err(PluginError::new(
-                        PluginErrorId::PluginDisable,
-                        "\"{plugin_name}\" は読み込まれていますが、ユーザにより無効化されています",
-                    ));
-                }
-                ac_state
-            } else {
+        let _ = if let Some((_, ac_state)) = self.get_plugin_activate_state(plugin_name) {
+            if ac_state == PluginActivateState::Disable {
                 return Err(PluginError::new(
-                    PluginErrorId::NotReady,
-                    format!("\"{plugin_name}\" はロードされていません"),
+                    PluginErrorId::PluginDisable,
+                    "\"{plugin_name}\" は読み込まれていますが、ユーザにより無効化されています",
                 ));
-            };
+            }
+            ac_state
+        } else {
+            return Err(PluginError::new(
+                PluginErrorId::NotReady,
+                format!("\"{plugin_name}\" はロードされていません"),
+            ));
+        };
         let func: Symbol<T> = match self.plugin_list.get(plugin_name) {
             None => {
                 return Err(PluginError::new(
@@ -181,11 +182,26 @@ impl PluginManager {
     pub fn loaded_plugin_counts(&self) -> usize {
         self.order.len()
     }
-    pub fn get_plugin_ordered_list(&self)->&Vec<String>{
+    pub fn get_plugin_ordered_list(&self) -> &Vec<String> {
         &self.order
     }
+    pub fn unload_specify_plugin_with_name(&mut self, name: &str) {
+        if let Some(plugin) = self.plugin_list.remove(name) {
+            self.order.remove(plugin.load_order);
+        }
+    }
+    pub fn unload_specify_plugin_with_index(&mut self, index: usize) {
+        if self.order.len() > index {
+            let name = self.order.remove(index);
+            self.plugin_list.remove(&name);
+        }
+    }
+    pub fn unload_all_plugin(&mut self) {
+        self.plugin_list.clear();
+        self.order.clear();
+    }
 }
-#[derive(Debug, PartialEq,Clone,Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PluginErrorId {
     AlreadyLoaded,
     FileNotFound,
@@ -193,7 +209,7 @@ pub enum PluginErrorId {
     SymbolNotFound,
     PluginDisable,
 }
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct PluginError {
     id: PluginErrorId,
     msg: String,
@@ -205,7 +221,7 @@ impl PluginError {
             msg: msg.into(),
         }
     }
-    pub fn plugin_error_id(&self)->PluginErrorId{
+    pub fn plugin_error_id(&self) -> PluginErrorId {
         self.id
     }
 }
