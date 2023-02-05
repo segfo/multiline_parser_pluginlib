@@ -37,6 +37,16 @@ impl PluginManager {
         let mut base = self.base_path.clone();
         let lib_name = lib_name.into();
         base.push(&lib_name);
+        if let Some(_)=self.plugin_list.get(&lib_name){
+            return Err(Box::new(PluginError::new(
+                PluginErrorId::AlreadyLoaded,
+                format!(
+                    "指定されたファイル名:{}\nフルパス:{}\nその他情報: ロード済みのプラグインのためスキップします",
+                    lib_name,
+                    base.to_str().unwrap(),
+                ),
+            )));
+        }
         let lib = match unsafe { libloading::Library::new(base.as_os_str()) } {
             Ok(lib) => lib,
             Err(e) => {
@@ -177,6 +187,7 @@ impl PluginManager {
 }
 #[derive(Debug, PartialEq,Clone,Copy)]
 pub enum PluginErrorId {
+    AlreadyLoaded,
     FileNotFound,
     NotReady,
     SymbolNotFound,
